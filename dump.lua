@@ -27,6 +27,9 @@ dump.require_path = select(1, ...)
 --- @type table<any, serialize_function>
 dump.custom_serializers = {}
 
+--- @type boolean
+dump.is_stacktracing_enabled = false
+
 dump_mt.__call = function(self, x)
   assert(
     self.require_path,
@@ -50,6 +53,22 @@ local to_expression = function(statement)
   return ("(function()\n%s\nend)()"):format(statement)
 end
 
+local stack_render = function()
+  return dump.is_stacktracing_enabled
+    and table.concat(stack, ".")
+    or "<stacktracing is disabled>"
+end
+
+local stack_push = function(value)
+  if not dump.is_stacktracing_enabled then return end
+  table.insert(stack, value)
+end
+
+local stack_pop = function(value)
+  if not dump.is_stacktracing_enabled then return end
+  table.remove(stack)
+end
+
 build_table = function(x, cache)
   local mt = getmetatable(x)
 
@@ -61,12 +80,12 @@ build_table = function(x, cache)
   result[2] = ("cache[%s] = _"):format(cache.size)
 
   for k, v in pairs(x) do
-    table.insert(stack, tostring(k))
+    stack_push(tostring(k))
     table.insert(result, ("_[%s] = %s"):format(
       handle_primitive(k, cache),
       handle_primitive(v, cache)
     ))
-    table.remove(stack)
+    stack_pop()
   end
 
   if not mt then
@@ -87,7 +106,7 @@ local build_function = function(x, cache)
   local ok, res = pcall(string.dump, x)
 
   if not ok then
-    error("Unable to dump function " .. table.concat(stack, "."))
+    error("Unable to dump function " .. stack_render())
   end
 
   result[1] = "local _ = " .. ([[load(%q)]]):format(res)
@@ -101,12 +120,12 @@ local build_function = function(x, cache)
     local k, v = debug.getupvalue(x, i)
     if not k then break end
 
-    table.insert(stack, ("<upvalue %s>"):format(k))
+    stack_push(("<upvalue %s>"):format(k))
     local upvalue = handle_primitive(v, cache)
-    table.remove(stack)
+    stack_pop()
 
     if not allowed_big_upvalues[x] and #upvalue > 2048 then
-      table.insert(warnings, ("Big upvalue %s in %s"):format(k, table.concat(stack, ".")))
+      table.insert(warnings, ("Big upvalue %s in %s"):format(k, stack_render()))
     end
     table.insert(result, ("debug.setupvalue(_, %s, %s)"):format(i, upvalue))
   end
@@ -155,7 +174,7 @@ handle_primitive = function(x, cache)
 
       table.insert(warnings,
         ("Serializer returned type %s for %s, falling back to default serialization"):format(
-          serialized_type, table.concat(stack, ".")
+          serialized_type, stack_render()
         )
       )
     end
@@ -164,7 +183,7 @@ handle_primitive = function(x, cache)
   local xtype = type(x)
   if not primitives[xtype] then
     table.insert(warnings, ("dump does not support type %q of %s"):format(
-      xtype, table.concat(stack, ".")
+      xtype, stack_render()
     ))
     return "nil"
   end
