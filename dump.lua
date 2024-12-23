@@ -1,4 +1,6 @@
-local warnings, allowed_big_upvalues, stack, build_table, handle_primitive
+local warnings, allowed_big_upvalues,
+  stack_reset, stack_get, stack_insert, stack_remove,
+  build_table, handle_primitive
 
 -- API --
 
@@ -15,6 +17,14 @@ dump.get_warnings = function() return {unpack(warnings)} end
 dump.ignore_upvalue_size = function(f)
   allowed_big_upvalues[f] = true
   return f
+end
+
+--- @diagnostic disable-next-line:undefined-global
+local is_stacktracing_enabled = DUMP_ENABLE_STACKTRACING or false
+
+--- @return boolean
+dump.is_stacktracing_enabled = function()
+  return is_stacktracing_enabled
 end
 
 --- @type string
@@ -36,7 +46,7 @@ dump_mt.__call = function(self, x)
     "Put the lua path to dump libary into dump.require_path before calling dump itself"
   )
 
-  stack = {}
+  stack_reset()
   warnings = {}
   local cache = {size = 0}
   local result = "return " .. handle_primitive(x, cache)
@@ -47,26 +57,35 @@ end
 
 -- internal implementation --
 
+if is_stacktracing_enabled then
+  local stack
+
+  stack_reset = function()
+    stack = {}
+  end
+
+  stack_get = function()
+    return table.concat(stack, ".")
+  end
+
+  stack_insert = function(value)
+    table.insert(stack, value)
+  end
+
+  stack_remove = function()
+    table.remove(stack)
+  end
+else
+  stack_reset = function() end
+  stack_get = function() return "<stacktracing is disabled>" end
+  stack_insert = function() end
+  stack_remove = function() end
+end
+
 allowed_big_upvalues = {}
 
 local to_expression = function(statement)
   return ("(function()\n%s\nend)()"):format(statement)
-end
-
-local stack_render = function()
-  return dump.is_stacktracing_enabled
-    and table.concat(stack, ".")
-    or "<stacktracing is disabled>"
-end
-
-local stack_push = function(value)
-  if not dump.is_stacktracing_enabled then return end
-  table.insert(stack, value)
-end
-
-local stack_pop = function(value)
-  if not dump.is_stacktracing_enabled then return end
-  table.remove(stack)
 end
 
 build_table = function(x, cache)
@@ -80,12 +99,12 @@ build_table = function(x, cache)
   result[2] = ("cache[%s] = _"):format(cache.size)
 
   for k, v in pairs(x) do
-    stack_push(tostring(k))
+    stack_insert(tostring(k))
     table.insert(result, ("_[%s] = %s"):format(
       handle_primitive(k, cache),
       handle_primitive(v, cache)
     ))
-    stack_pop()
+    stack_remove()
   end
 
   if not mt then
@@ -106,7 +125,7 @@ local build_function = function(x, cache)
   local ok, res = pcall(string.dump, x)
 
   if not ok then
-    error("Unable to dump function " .. stack_render())
+    error("Unable to dump function " .. stack_get())
   end
 
   result[1] = "local _ = " .. ([[load(%q)]]):format(res)
@@ -120,12 +139,12 @@ local build_function = function(x, cache)
     local k, v = debug.getupvalue(x, i)
     if not k then break end
 
-    stack_push(("<upvalue %s>"):format(k))
+    stack_insert(("<upvalue %s>"):format(k))
     local upvalue = handle_primitive(v, cache)
-    stack_pop()
+    stack_remove()
 
     if not allowed_big_upvalues[x] and #upvalue > 2048 then
-      table.insert(warnings, ("Big upvalue %s in %s"):format(k, stack_render()))
+      table.insert(warnings, ("Big upvalue %s in %s"):format(k, stack_get()))
     end
     table.insert(result, ("debug.setupvalue(_, %s, %s)"):format(i, upvalue))
   end
@@ -174,7 +193,7 @@ handle_primitive = function(x, cache)
 
       table.insert(warnings,
         ("Serializer returned type %s for %s, falling back to default serialization"):format(
-          serialized_type, stack_render()
+          serialized_type, stack_get()
         )
       )
     end
@@ -183,7 +202,7 @@ handle_primitive = function(x, cache)
   local xtype = type(x)
   if not primitives[xtype] then
     table.insert(warnings, ("dump does not support type %q of %s"):format(
-      xtype, stack_render()
+      xtype, stack_get()
     ))
     return "nil"
   end

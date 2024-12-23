@@ -1,20 +1,20 @@
-local dump = require("dump")
-
-
 print("-- Stacktracing --")
 
 local serialized = {}
 for i = 1, 10 do
   local last = {}
   serialized[i] = last
-  for j = 1, 1000 do
-    last[j] = {}
+  for j = 1, 100000 do
+    last[j] = (i ^ 2 + j ^ 2) % 7
   end
 end
 
 for _, enabled in ipairs({true, false}) do
   print("enabled: ", enabled)
-  dump.is_stacktracing_enabled = enabled
+
+  package.loaded = {}
+  DUMP_ENABLE_STACKTRACING = enabled
+  local dump = require("dump")
 
   local N = 10
   local sum = 0
