@@ -12,12 +12,16 @@ local ldump = setmetatable({}, ldump_mt)
 
 --- @alias deserializer string | fun(): any
 
---- Custom serialization functions for the exact objects. 
----
---- Key is the value that can be serialized, value is a deserializer in form of `load`-compatible
---- string or function. Takes priority over `__serialize`.
---- @type table<any, deserializer>
-ldump.custom_serializers = {}
+--- @overload fun(value: any): deserializer
+ldump.preserializer = setmetatable({
+  --- @type table<any, deserializer>
+  handlers = {},
+}, {
+  __call = function(self, value)
+    local mt = getmetatable(value)
+    return self.handlers[value] or mt and mt.__serialize and mt.__serialize(value)
+  end,
+})
 
 --- Loads the given module, returns any value returned by the given module (`true` when `nil`).
 --- 
@@ -170,7 +174,7 @@ local build_function = function(x, cache)
     local upvalue
     if k == "_ENV" then
       upvalue = "_ENV"
-      -- TODO! would this work if this would be a different env? an upvalue called _ENV?
+      -- TODO would this work if this would be a different env? an upvalue called _ENV?
     else
       upvalue = handle_primitive(v, cache)
     end
@@ -208,8 +212,7 @@ local primitives = {
 
 handle_primitive = function(x, cache)
   do  -- handle custom serializers
-    local mt = getmetatable(x)
-    local deserializer = ldump.custom_serializers[x] or mt and mt.__serialize and mt.__serialize(x)
+    local deserializer, which_serializer = ldump.preserializer(x)
 
     if deserializer then
       local deserializer_type = type(deserializer)
@@ -222,10 +225,6 @@ handle_primitive = function(x, cache)
         allowed_big_upvalues[deserializer] = true
         return ("%s()"):format(handle_primitive(deserializer, cache))
       end
-
-      local which_serializer = ldump.custom_serializers[x]
-        and "ldump.custom_serializers[x]"
-        or "getmetatable(x).__serialize(x)"
 
       error(("`%s` returned type %s for .%s; it should return string or function")
         :format(which_serializer, deserializer_type, table.concat(stack, ".")), 0)
