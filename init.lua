@@ -1,4 +1,4 @@
-local warnings, allowed_big_upvalues, stack, handle_primitive
+local warnings, allowed_big_upvalues, stack, handle_primitive, mark_as_const
 
 -- API --
 
@@ -68,6 +68,16 @@ ldump.strict_mode = true
 --- Inferred from requiring the ldump itself, can be changed.
 --- @type string
 ldump.require_path = select(1, ...)
+
+--- @generic T
+--- @param module T
+--- @param schema table | "const"
+--- @param modname string
+--- @return T
+ldump.mark = function(module, schema, modname)
+  mark_as_const(module, schema, modname)
+  return module
+end
 
 
 -- internal implementation --
@@ -259,6 +269,169 @@ handle_primitive = function(x, cache, upvalue_id_cache)
   end
 
   return primitives[xtype](x, cache, upvalue_id_cache)
+end
+
+local reference_types = {
+  ["function"] = true,
+  userdata = true,
+  thread = true,
+  table = true,
+}
+
+ldump._upvalue_mt = {
+  __serialize = function(self)
+    local ldump_require_path = ldump.require_path
+    local name = self.name
+    return function()
+      return require(ldump_require_path)._upvalue(name)
+    end
+  end,
+}
+
+ldump._upvalue = function(name)
+  return setmetatable({
+    name = name,
+  }, ldump._upvalue_mt)
+end
+
+local mark_as_static = function(value, module_path, key_path)
+  local ldump_require_path = ldump.require_path
+
+  ldump.serializer.handlers[value] = function()
+    local ldump_local = require(ldump_require_path)
+    local result = ldump_local.require(module_path)
+
+    for _, key in ipairs(key_path) do
+      if getmetatable(key) == ldump_local._upvalue_mt then
+        for i = 1, math.huge do
+          local k, v = debug.getupvalue(result, i)
+          assert(k)
+
+          if k == key.name then
+            result = v
+            break
+          end
+        end
+      else
+        result = result[key]
+      end
+    end
+    return result
+  end
+end
+
+local find_keys
+find_keys = function(root, keys, key_path, result, seen)
+  if seen[root] then return end
+  seen[root] = true
+
+  local root_type = type(root)
+  if root_type == "table" then
+    for k, v in pairs(root) do
+      if keys[k] then
+        table.insert(result, "." .. table.concat(key_path, "."))
+      end
+
+      table.insert(key_path, tostring(k))
+      find_keys(v, keys, key_path, result, seen)
+      table.remove(key_path)
+    end
+  elseif root_type == "function" then
+    for i = 1, math.huge do
+      local k, v = debug.getupvalue(root, i)
+      if not k then break end
+
+      -- prevent searching the global table
+      -- TODO does this allow for detection in _ENV in lua5.1?
+      if k ~= "_ENV" or _ENV == nil or v._G == _G then
+        table.insert(key_path, ("<upvalue %s>"):format(k))
+        find_keys(v, keys, key_path, result, seen)
+        table.remove(key_path)
+      end
+    end
+  end
+end
+
+local validate_keys = function(module, modname, potential_unserializable_keys)
+  local unserializable_keys = {}
+  local unserializable_keys_n = 0
+  for key, _ in pairs(potential_unserializable_keys) do
+    if not ldump.custom_serializers[key] then
+      unserializable_keys[key] = true
+      unserializable_keys_n = unserializable_keys_n + 1
+    end
+  end
+
+  if unserializable_keys_n == 0 then return end
+
+  local key_paths = {}
+  find_keys(module, unserializable_keys, {}, key_paths, {})
+  local key_paths_rendered = table.concat(key_paths, ", ")
+  if #key_paths_rendered > 1000 then
+    key_paths_rendered = key_paths_rendered:sub(1, 1000) .. "..."
+  end
+
+  error((
+    "Encountered reference-type keys (%s) in module %s. Reference-type keys " ..
+    "are fundamentally impossible to deserialize using `require`. Save them as a value of " ..
+    "the field anywhere in the module, manually overload their serialization or add module " ..
+    "path to `ldump.modules_with_reference_keys` to disable the check.\n\nKeys in: %s"
+  ):format(unserializable_keys_n, modname, key_paths_rendered), 3)
+end
+
+mark_as_const = function(value, modname)
+  if not reference_types[type(value)] then return end
+
+  local seen = {[value] = true}
+  local queue_values = {value}
+  local queue_key_paths = {{}}
+  local potential_unserializable_keys = {}
+
+  local i = 0
+
+  while i < #queue_values do
+    i = i + 1
+    local current = queue_values[i]
+    local key_path = queue_key_paths[i]
+
+    mark_as_static(current, modname, key_path)
+
+    local type_current = type(current)
+    if type_current == "table" then
+      for k, v in pairs(current) do
+        if reference_types[type(k)] then
+          potential_unserializable_keys[k] = true
+        end
+
+        -- duplicated for optimization
+        if reference_types[type(v)] and not seen[v] then
+          seen[v] = true
+          local key_path_copy = {unpack(key_path)}
+          table.insert(key_path_copy, k)
+          table.insert(queue_values, v)
+          table.insert(queue_key_paths, key_path_copy)
+        end
+      end
+
+    elseif type_current == "function" then
+      for j = 1, math.huge do
+        local k, v = debug.getupvalue(current, j)
+        if not k then break end
+
+        -- duplicated for optimization
+        -- seems like any _ENV would be handled by string.dump
+        if k ~= "_ENV" and reference_types[type(v)] and not seen[v] then
+          seen[v] = true
+          local key_path_copy = {unpack(key_path)}
+          table.insert(key_path_copy, ldump._upvalue(k))
+          table.insert(queue_values, v)
+          table.insert(queue_key_paths, key_path_copy)
+        end
+      end
+    end
+
+    validate_keys(value, modname, potential_unserializable_keys)
+  end
 end
 
 
