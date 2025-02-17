@@ -100,7 +100,7 @@ ldump.require_path = select(1, ...)
 --- @param modname string
 --- @return T
 ldump.mark = function(module, schema, modname)
-  mark_as_const(module, schema, modname)
+  mark_as_const(module, modname)
   return module
 end
 
@@ -372,7 +372,7 @@ local mark_as_static = function(value, module_path, key_path)
 
   ldump.serializer.handlers[value] = function()
     local ldump_local = require(ldump_require_path)
-    local result = ldump_local.require(module_path)
+    local result = require(module_path)
 
     for _, key in ipairs(key_path) do
       if getmetatable(key) == ldump_local._upvalue_mt then
@@ -449,7 +449,7 @@ local validate_keys = function(module, modname, potential_unserializable_keys)
     "are fundamentally impossible to deserialize using `require`. Save them as a value of " ..
     "the field anywhere in the module, manually overload their serialization or add module " ..
     "path to `ldump.modules_with_reference_keys` to disable the check.\n\nKeys in: %s"
-  ):format(unserializable_keys_n, modname, key_paths_rendered), 3)
+  ):format(unserializable_keys_n, modname, key_paths_rendered), 0)
 end
 
 mark_as_const = function(value, modname)
