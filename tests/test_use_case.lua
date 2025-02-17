@@ -1,7 +1,10 @@
 -- NOTICE all tests in this file are represented in the corresponding files, and should be updated
 --   there each time they are updated here
 
-_G.unpack = unpack or table.unpack
+local utils = require("tests.utils")
+_G.unpack = table.unpack or unpack
+_G.load = utils.load
+
 
 describe("README.md", function()
   it("Basic use case", function()
@@ -38,7 +41,7 @@ describe("README.md", function()
     local upvalue = 42
     game_state.get_answer = function() return upvalue end
 
-    -- fundamentally non-serializable types if overriden
+    -- fundamentally non-serializable types if overridden
     local create_coroutine = function()
       return coroutine.wrap(function()
         coroutine.yield(1337)

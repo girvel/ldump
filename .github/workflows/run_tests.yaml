@@ -28,3 +28,6 @@ jobs:
 
     - name: Run Busted
       run: busted -v
+
+    - name: Run Busted in safety mode
+      run: LDUMP_TEST_SAFETY=1 busted -v

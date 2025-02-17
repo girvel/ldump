@@ -1,11 +1,10 @@
 local ldump = require("init")
--- ldump.require_path = "ldump"
-_G.unpack = table.unpack
+local utils = require("tests.utils")
 
---- Serialize and deserialize
-local pass = function(value)
-  return load(ldump(value))()
-end
+_G.unpack = table.unpack or unpack
+_G.load = utils.load
+local pass = utils.pass
+
 
 describe("Serializing primitives:", function()
   local persists = function(value)
@@ -26,6 +25,7 @@ describe("Serializing primitives:", function()
 
   it("string", function()
     persists("abc\n")
+    persists("\a\b\f\n\r\t\v\\\"\'")
   end)
 
   it("function", function()
@@ -156,15 +156,8 @@ describe("Overriding serialization:", function()
 
   it("custom serializer", function()
     -- make an independent ldump copy for mutation
-    local ldump_copy = package.loaded.init
-    package.loaded.init = nil
-    ldump = require("init")
-
-    local pass = function(x)
-      return load(ldump_copy(x))()
-    end
-
-    ldump_copy.serializer = function(x)
+    local old_serializer = ldump.serializer
+    ldump.serializer = function(x)
       if type(x) == "thread" then
         return "404", "serializer's thread handling"
       end
@@ -181,10 +174,23 @@ describe("Overriding serialization:", function()
     assert.are_equal(404, pass(thread))
     assert.are_same({a = 1, b = 2, c = 404}, pass(t))
 
-    local ok, res = pcall(ldump_copy, f)
+    local ok, res = pcall(ldump --[[@as function]], f)
     assert.is_false(ok)
     local ending = "serializer's table handling"
     assert.are_equal(ending, res:sub(1, #ending))
+
+    ldump.serializer = old_serializer
+  end)
+
+  it("Caching with custom serializer", function()
+    local f = coroutine.wrap(function() end)
+    local to_serialize = {a = f, b = f}
+    ldump.serializer.handlers[f] = function() return {} end
+
+    local copy = pass(to_serialize)
+    assert.are_equal(copy.a, copy.b)
+
+    ldump.serializer.handlers[f] = nil
   end)
 end)
 
@@ -216,7 +222,7 @@ describe("Error handling:", function()
       return 42
     end})
 
-    local ok, result = pcall(ldump --[[ @as function ]], t)
+    local ok, result = pcall(ldump --[[@as function]], t)
 
     assert.is_false(ok)
   end)
@@ -225,13 +231,29 @@ describe("Error handling:", function()
     local c = coroutine.create(function() end)
 
     it("causes an error in strict mode", function()
-      local success = pcall(ldump --[[ @as function ]], c)
+      local success = pcall(ldump --[[@as function]], c)
       assert.is_false(success)
     end)
 
     it("writes a warning in non-strict mode", function()
       ldump.strict_mode = false
       ldump(c)
+      assert.are_equal(1, #ldump.get_warnings())
+      ldump.strict_mode = true
+    end)
+  end)
+
+  describe("coroutine.wrap function", function()
+    local f = coroutine.wrap(function() end)
+
+    it("causes an error in strict mode", function()
+      local ok = pcall(ldump --[[@as function]], f)
+      assert.is_false(ok)
+    end)
+
+    it("writes a warning in non-strict mode", function()
+      ldump.strict_mode = false
+      ldump(f)
       assert.are_equal(1, #ldump.get_warnings())
       ldump.strict_mode = true
     end)

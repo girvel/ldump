@@ -1,6 +1,6 @@
 # Overloading serialization
 
-There are two ways to customize serialization in `ldump`: through defining serializers for the certain values or all the values with a certain metatable, or through reassigning a global preprocessing function, that may choose to override or not override serialization for any data. Any serialization override would work recursively, so the serialization inside of the composite data (s. a. tables and closures) would use the override.
+There are two ways to customize serialization in `ldump`: by defining serializers for certain values or all the values with a certain metatable, or by reassigning a global preprocessing function that may choose to override or not override serialization for any data. Any serialization override would work recursively, so the serialization inside of the composite data (s. a. tables and closures) would use the override.
 
 ## 0. Method
 
@@ -55,16 +55,16 @@ See as a test at [/tests/test_use_case.lua:124](/tests/test_use_case.lua#L124)
 
 ## 1. Custom serializers
 
-Custom serializers can be defined in two ways: through `__serialize` metamethod or `ldump.serializer.handlers`.
+Custom serializers can be defined in two ways: through the `__serialize` metamethod or `ldump.serializer.handlers`.
 
 ### `__serialize`
 
-Allows to redefine serialization for all values with given metatable. The serialize metamethod should accept one argument — the object itself — and return the deserializer. See examples in [Method](#0-method).
+Allows to redefine serialization for all values with the given metatable. The serialize metamethod should accept one argument — the object itself — and return the deserializer. See examples in [Method](#0-method).
 
 ### `ldump.serializer.handlers`
 
-Allows to redefine serialization for the certain values. To do so, assign the handler with the value as a key and the deserializer as the value. See [API#`ldump.serializer.handlers`](/docs/api.md#ldumpserializerhandlers).
+Allows to redefine serialization for certain values. To do so, assign the handler with the value as a key and the deserializer as the value. See [API#`ldump.serializer.handlers`](/docs/api.md#ldumpserializerhandlers).
 
 ## 2. Custom preprocess
 
-You can reassign the `ldump.serializer` itself. It would be called before serializing each value and allow to customize serialization in the most flexible way. See signature at [API#`ldump.serializer`](/docs/api.md#ldumpserializer).
+You can reassign the `ldump.serializer` itself. It would be called before serializing each value and allow customizing serialization in the most flexible way. See signature at [API#`ldump.serializer`](/docs/api.md#ldumpserializer).
