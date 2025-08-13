@@ -32,8 +32,8 @@ end)
 -- TODO marking upvalues? is it meaningful/possible considering the parent function should be static?
 
 it("Marking from the outside", function()
-  local deterministic = require("deterministic")
-  ldump.mark_module("deterministic", {})
+  local deterministic = require("tests.resources.deterministic")
+  ldump.mark_module("tests.resources.deterministic", {})
   assert.are_equal(deterministic, pass(deterministic))
   assert.are_not_equal(deterministic.some_value, pass(deterministic.some_value))
 

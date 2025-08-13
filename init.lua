@@ -1,4 +1,4 @@
-local warnings, allowed_big_upvalues, stack, handle_primitive, cache_packages, mark_as_const
+local warnings, allowed_big_upvalues, stack, handle_primitive, cache_packages, mark
 
 -- API --
 
@@ -100,8 +100,12 @@ ldump.require_path = select(1, ...)
 --- @param modname string
 --- @return T
 ldump.mark = function(module, schema, modname)
-  mark_as_const(module, modname)
+  mark(module, modname, schema)
   return module
+end
+
+ldump.mark_module = function(modname, schema)
+  ldump.mark(require(modname), schema, modname)
 end
 
 
@@ -351,6 +355,7 @@ local reference_types = {
   table = true,
 }
 
+-- TODO no need to export these, we can mark locals
 ldump._upvalue_mt = {
   __serialize = function(self)
     local ldump_require_path = ldump.require_path
@@ -452,13 +457,14 @@ local validate_keys = function(module, modname, potential_unserializable_keys)
   ):format(unserializable_keys_n, modname, key_paths_rendered), 0)
 end
 
-mark_as_const = function(value, modname)
+mark = function(value, modname, schema)
   if not reference_types[type(value)] then return end
 
   local seen = {[value] = true}
   local queue_values = {value}
   local queue_key_paths = {{}}
   local potential_unserializable_keys = {}
+  local queue_schemas = {schema}
 
   local i = 0
 
@@ -466,23 +472,27 @@ mark_as_const = function(value, modname)
     i = i + 1
     local current = queue_values[i]
     local key_path = queue_key_paths[i]
+    local current_schema = queue_schemas[i]
 
     mark_as_static(current, modname, key_path)
 
     local type_current = type(current)
     if type_current == "table" then
       for k, v in pairs(current) do
-        if reference_types[type(k)] then
-          potential_unserializable_keys[k] = true
-        end
+        if current_schema == "const" or current_schema[k] then
+          if reference_types[type(k)] then
+            potential_unserializable_keys[k] = true
+          end
 
-        -- duplicated for optimization
-        if reference_types[type(v)] and not seen[v] then
-          seen[v] = true
-          local key_path_copy = {unpack(key_path)}
-          table.insert(key_path_copy, k)
-          table.insert(queue_values, v)
-          table.insert(queue_key_paths, key_path_copy)
+          -- duplicated for optimization
+          if reference_types[type(v)] and not seen[v] then
+            seen[v] = true
+            local key_path_copy = {unpack(key_path)}
+            table.insert(key_path_copy, k)
+            table.insert(queue_values, v)
+            table.insert(queue_key_paths, key_path_copy)
+            table.insert(queue_schemas, current_schema == "const" and "const" or current_schema[k])
+          end
         end
       end
 
@@ -499,6 +509,7 @@ mark_as_const = function(value, modname)
           table.insert(key_path_copy, ldump._upvalue(k))
           table.insert(queue_values, v)
           table.insert(queue_key_paths, key_path_copy)
+          table.insert(queue_schemas, "const")
         end
       end
     end
