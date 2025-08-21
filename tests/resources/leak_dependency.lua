@@ -1,0 +1,4 @@
+local key = {}
+return {
+  [key] = {},
+}

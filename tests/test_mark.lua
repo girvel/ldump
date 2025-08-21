@@ -21,16 +21,6 @@ it("Internal marking with a schema", function()
   assert.are_equal(marked_module.coroutine, pass(marked_module.coroutine))
 end)
 
--- it("Marking upvalues", function()
---   local marked_upvalues = require("tests.resources.marked_upvalues")
---   local upvalue1, upvalue2 = marked_upvalues.f()
---   local copy1, copy2 = pass(marked_upvalues.f)()
---   assert.are_equal(upvalue1, copy1)
---   assert.are_equal(upvalue2, copy2)
--- end)
---
--- TODO marking upvalues? is it meaningful/possible considering the parent function should be static?
-
 it("Marking from the outside", function()
   local deterministic = require("tests.resources.deterministic")
   ldump.mark_module("tests.resources.deterministic", {})
@@ -38,4 +28,18 @@ it("Marking from the outside", function()
   assert.are_not_equal(deterministic.some_value, pass(deterministic.some_value))
 
   ldump.serializer.handlers[deterministic] = nil
+end)
+
+it("const shouldn't leak into function upvalues, may begin to mark dependencies", function()
+  ldump.mark_module("tests.resources.leak_dependent", "const")
+end)
+
+it("upvalues can be marked manually", function()
+  local ok, result = pcall(ldump.mark_module, "tests.resources.leak_dependent", {
+    f = {
+      dependency = "const",
+    }
+  })
+
+  assert.is_false(ok)
 end)

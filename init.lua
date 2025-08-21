@@ -435,7 +435,7 @@ local validate_keys = function(module, modname, potential_unserializable_keys)
   local unserializable_keys = {}
   local unserializable_keys_n = 0
   for key, _ in pairs(potential_unserializable_keys) do
-    if not ldump.custom_serializers[key] then
+    if not ldump.serializer.handlers[key] then
       unserializable_keys[key] = true
       unserializable_keys_n = unserializable_keys_n + 1
     end
@@ -501,16 +501,18 @@ mark = function(value, modname, schema)
       for j = 1, math.huge do
         local k, v = debug.getupvalue(current, j)
         if not k then break end
+        if current_schema[k] then
 
-        -- duplicated for optimization
-        -- seems like any _ENV would be handled by string.dump
-        if k ~= "_ENV" and reference_types[type(v)] and not seen[v] then
-          seen[v] = true
-          local key_path_copy = {unpack(key_path)}
-          table.insert(key_path_copy, ldump._upvalue(k))
-          table.insert(queue_values, v)
-          table.insert(queue_key_paths, key_path_copy)
-          table.insert(queue_schemas, "const")
+          -- duplicated for optimization
+          -- seems like any _ENV would be handled by string.dump
+          if k ~= "_ENV" and reference_types[type(v)] and not seen[v] then
+            seen[v] = true
+            local key_path_copy = {unpack(key_path)}
+            table.insert(key_path_copy, ldump._upvalue(k))
+            table.insert(queue_values, v)
+            table.insert(queue_key_paths, key_path_copy)
+            table.insert(queue_schemas, current_schema == "const" and "const" or current_schema[k])
+          end
         end
       end
     end
