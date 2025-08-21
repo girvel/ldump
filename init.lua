@@ -305,6 +305,9 @@ handle_primitive = function(x, cache, upvalue_id_cache)
           :format(source or "ldump.serializer", deserializer_type, table.concat(stack, ".")), 0)
       end
 
+      cache.size = cache.size + 1
+      cache[x] = cache.size
+
       local expression
       if deserializer_type == "string" then
         expression = deserializer
@@ -312,9 +315,6 @@ handle_primitive = function(x, cache, upvalue_id_cache)
         allowed_big_upvalues[deserializer] = true
         expression = ("%s()"):format(handle_primitive(deserializer, cache, upvalue_id_cache))
       end
-
-      cache.size = cache.size + 1
-      cache[x] = cache.size
 
       return to_expression(([[
         local _ = %s
