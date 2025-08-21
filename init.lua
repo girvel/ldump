@@ -307,6 +307,7 @@ handle_primitive = function(x, cache, upvalue_id_cache)
 
       cache.size = cache.size + 1
       cache[x] = cache.size
+      local old_size = cache.size
 
       local expression
       if deserializer_type == "string" then
@@ -320,7 +321,7 @@ handle_primitive = function(x, cache, upvalue_id_cache)
         local _ = %s
         cache[%s] = _
         return _
-      ]]):format(expression, cache.size))
+      ]]):format(expression, old_size))
     end
   end
 
