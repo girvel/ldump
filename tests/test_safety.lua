@@ -31,14 +31,20 @@ it("Data safety", function()
 end)
 
 it("Memory safety", function()
-  -- package.loaded.init = nil
-  -- local ldump = require("init")
-  -- assert(not next(ldump.serializer.handlers))
+  package.loaded.init = nil
+  local ldump = require("init")
+  assert(not next(ldump.serializer.handlers))
 
-  local a = setmetatable({}, {__mode = "k"})
   local key = {}
-  a[key] = 1
+  ldump.serializer.handlers[key] = "1"
   key = nil
   collectgarbage()
-  assert.is_nil(next(a))
+  assert.is_nil(next(ldump.serializer.handlers))
+
+  -- local a = setmetatable({}, {__mode = "k"})
+  -- local key = {}
+  -- a[key] = 1
+  -- key = nil
+  -- collectgarbage()
+  -- assert.is_nil(next(a))
 end)

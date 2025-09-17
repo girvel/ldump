@@ -22,10 +22,12 @@ local ldump = setmetatable({}, ldump_mt)
 ldump.serializer = setmetatable({
   --- Custom serialization functions for the exact objects. 
   ---
-  --- Key is the value that can be serialized, value is a deserializer in the form of a string with a
-  --- valid lua expression or a function. Takes priority over `__serialize`.
+  --- Key is the value that can be serialized, value is a deserializer in the form of a string
+  --- with a valid lua expression or a function. Takes priority over `__serialize`.
+  ---
+  --- NOTICE weak keys: `getmetatable(handlers).__mode == "k"` to prevent memory leaks.
   --- @type table<any, deserializer>
-  handlers = {},
+  handlers = setmetatable({}, {__mode = "k"}),
 }, {
   __call = function(self, x)
     local handler = self.handlers[x]

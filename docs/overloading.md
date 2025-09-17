@@ -68,3 +68,5 @@ Allows to redefine serialization for certain values. To do so, assign the handle
 ## 2. Custom preprocess
 
 You can reassign the `ldump.serializer` itself. It would be called before serializing each value and allow customizing serialization in the most flexible way. See signature at [API#`ldump.serializer`](/docs/api.md#ldumpserializer).
+
+NOTICE: `serializer.handlers` should have weak keys to prevent memory leaks.
