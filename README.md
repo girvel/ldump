@@ -6,7 +6,8 @@
 
 Inspired by [`Ser`](https://github.com/gvx/Ser). Supports Lua 5.1, 5.2, 5.3, 5.4 and LuaJIT. Tested for edge cases, such as joined upvalues and _ENV redefinition. Fully annotated in compatibility with LuaLS.
 
-**WARNING:** `ldump`'s deserialization function is Lua's builtin `load`, which can load malicious code. Consider using JSON for untrusted data or use [safety measures](/docs/safety.md).
+> [!WARNING]
+> `ldump`'s deserialization function is Lua's builtin `load`, which can load malicious code. Consider using JSON for untrusted data or use [safety measures](/docs/safety.md).
 
 | Type                                      | Support      |
 | ----------------------------------------- | ------------ |
@@ -94,6 +95,12 @@ See as a test at [/tests/test_use_case.lua:23](/tests/test_use_case.lua#L23)
 
 - *Traditional way:* copy the [raw contents of init.lua from the latest release](https://raw.githubusercontent.com/girvel/ldump/refs/tags/v1.4.0/init.lua) into your `<lib>/ldump.lua`
 - *Recommended way:* `git clone -b v1.4.0 https://github.com/girvel/ldump` inside the `<lib>/` — you still would be able to do `require("ldump")`, and it would allow version management through git
+
+## On module serialization
+
+In most cases, if you want to serialize code and don't want all the used modules within to be recursively serialized -- you can turn on `ldump.preserve_modules`. As long as your code does `local module_name = require("module_name")`, not `local module_function = require("module_name").f` (meaning upvalues hold modules themselves, not their contents), all references to modules will be deserialized through require.
+
+If you have a more complex case, where you need the references to the data inside the modules persisting between serialization, you can use branch `2.0-mark`. It provides `ldump.mark*` functions, that explain to `ldump.serializer` which part of the module is static and can be deserialized through require. It is a development branch, but thoroughly tested and actively used in my other project ([girvel/engine](https://github.com/girvel/engine)), so it's stable and ready to use.
 
 ---
 
