@@ -29,3 +29,16 @@ it("Data safety", function()
 
   assert.is_false(ok)
 end)
+
+it("Memory safety", function()
+  -- package.loaded.init = nil
+  -- local ldump = require("init")
+  -- assert(not next(ldump.serializer.handlers))
+
+  local a = setmetatable({}, {__mode = "k"})
+  local key = {}
+  a[key] = 1
+  key = nil
+  collectgarbage()
+  assert.is_nil(next(a))
+end)
