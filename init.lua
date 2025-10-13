@@ -1,4 +1,5 @@
-local warnings, allowed_big_upvalues, stack, handle_primitive, cache_packages, mark
+local warnings, allowed_big_upvalues, allowed_big, stack, handle_primitive, cache_packages, mark
+local weak_mt = {__mode = "k"}
 
 -- API --
 
@@ -27,7 +28,7 @@ ldump.serializer = setmetatable({
   ---
   --- NOTICE weak keys: `getmetatable(handlers).__mode == "k"` to prevent memory leaks.
   --- @type table<any, deserializer>
-  handlers = setmetatable({}, {__mode = "k"}),
+  handlers = setmetatable({}, weak_mt),
 }, {
   __call = function(self, x)
     local handler = self.handlers[x]
@@ -66,7 +67,7 @@ end
 --- @return string[]
 ldump.get_warnings = function() return {unpack(warnings)} end
 
---- Mark function, causing dump to stop producing upvalue size warnings.
+--- Mark function, causing ldump to stop producing size warnings for its upvalues.
 ---
 --- Upvalues can cause large modules to be serialized implicitly. Warnings allow tracking that.
 --- @generic T: function
@@ -75,6 +76,17 @@ ldump.get_warnings = function() return {unpack(warnings)} end
 ldump.ignore_upvalue_size = function(f)
   allowed_big_upvalues[f] = true
   return f
+end
+
+--- Mark value as large, causing ldump to stop producing upvalue size warnings for this value.
+---
+--- Upvalues can cause large modules to be serialized implicitly. Warnings allow tracking that.
+--- @generic T: any
+--- @param v T
+--- @return T # returns the same value
+ldump.ignore_size = function(v)
+  allowed_big[v] = true
+  return v
 end
 
 --- If true (by default), `ldump` treats unserializable data as an error, if false produces a
@@ -152,7 +164,8 @@ return %s
   return base_code:format(self.require_path, result)
 end
 
-allowed_big_upvalues = {}
+allowed_big_upvalues = setmetatable({}, weak_mt)
+allowed_big = setmetatable({}, weak_mt)
 
 local to_expression = function(statement)
   return ("(function()\n%s\nend)()"):format(statement)
@@ -234,7 +247,7 @@ local build_function = function(x, cache, upvalue_id_cache)
     end
     table.remove(stack)
 
-    if not allowed_big_upvalues[x] and #upvalue > 2048 and k ~= "_ENV" then
+    if not allowed_big_upvalues[x] and not allowed_big[v] and #upvalue > 2048 and k ~= "_ENV" then
       table.insert(warnings, ("Big upvalue %s in %s"):format(k, table.concat(stack, ".")))
     end
     table.insert(result, ("debug.setupvalue(_, %s, %s)"):format(i, upvalue))
@@ -321,9 +334,9 @@ handle_primitive = function(x, cache, upvalue_id_cache)
 
       return to_expression(([[
         local _ = %s
-        cache[%s] = _
+        cache[%s] = _%s
         return _
-      ]]):format(expression, old_size))
+      ]]):format(expression, old_size, allowed_big[x] and "\nldump.ignore_size(_)" or ""))
     end
   end
 
