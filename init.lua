@@ -102,6 +102,9 @@ ldump.strict_mode = true
 --- @type boolean
 ldump.preserve_modules = false
 
+--- @type integer
+ldump.upvalue_warning_threshold = 2048
+
 --- `require`-style path to the ldump module, used in deserialization.
 ---
 --- Inferred from requiring the ldump itself, can be changed.
@@ -247,7 +250,7 @@ local build_function = function(x, cache, upvalue_id_cache)
     end
     table.remove(stack)
 
-    if not allowed_big_upvalues[x] and not allowed_big[v] and #upvalue > 2048 and k ~= "_ENV" then
+    if not allowed_big_upvalues[x] and not allowed_big[v] and #upvalue > ldump.upvalue_warning_threshold and k ~= "_ENV" then
       table.insert(warnings, ("Big upvalue %s in %s"):format(k, table.concat(stack, ".")))
     end
     table.insert(result, ("debug.setupvalue(_, %s, %s)"):format(i, upvalue))
