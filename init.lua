@@ -174,6 +174,9 @@ local to_expression = function(statement)
   return ("(function()\n%s\nend)()"):format(statement)
 end
 
+--- Lua's limit
+local MAX_CONSTANTS_IN_FUNCTION = 65536
+
 local build_table = function(x, cache, upvalue_id_cache)
   local mt = getmetatable(x)
 
@@ -184,13 +187,31 @@ local build_table = function(x, cache, upvalue_id_cache)
   result[1] = "local _ = {}"
   result[2] = ("cache[%s] = _"):format(cache.size)
 
+  local constants_n = 1
+  local is_in_subfunction = false
+
   for k, v in pairs(x) do
     table.insert(stack, tostring(k))
-    table.insert(result, ("_[%s] = %s"):format(
-      handle_primitive(k, cache, upvalue_id_cache),
-      handle_primitive(v, cache, upvalue_id_cache)
-    ))
+      constants_n = constants_n + 2
+      if constants_n >= MAX_CONSTANTS_IN_FUNCTION then
+        if is_in_subfunction then
+          table.insert(result, "end)();")
+        end
+        table.insert(result, "(function()")
+
+        is_in_subfunction = true
+        constants_n = constants_n - MAX_CONSTANTS_IN_FUNCTION
+      end
+
+      table.insert(result, ("_[%s] = %s"):format(
+        handle_primitive(k, cache, upvalue_id_cache),
+        handle_primitive(v, cache, upvalue_id_cache)
+      ))
     table.remove(stack)
+  end
+
+  if is_in_subfunction then
+    table.insert(result, "end)();")
   end
 
   if not mt then
