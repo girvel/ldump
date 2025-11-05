@@ -195,9 +195,9 @@ local build_table = function(x, cache, upvalue_id_cache)
       constants_n = constants_n + 2
       if constants_n >= MAX_CONSTANTS_IN_FUNCTION then
         if is_in_subfunction then
-          table.insert(result, "end)();")
+          table.insert(result, "end)()")
         end
-        table.insert(result, "(function()")
+        table.insert(result, ";(function()")
 
         is_in_subfunction = true
         constants_n = constants_n - MAX_CONSTANTS_IN_FUNCTION
@@ -211,7 +211,7 @@ local build_table = function(x, cache, upvalue_id_cache)
   end
 
   if is_in_subfunction then
-    table.insert(result, "end)();")
+    table.insert(result, "end)()")
   end
 
   if not mt then
