@@ -319,4 +319,14 @@ describe("Corner cases:", function()
     assert.are_same(env, copy_env)
     assert.are_equal(value, copy_value)
   end)
+
+  it("constants overflow", function()
+    local t = {}
+    for i = 1, 100000 do
+      t[i] = 1000000 + i
+    end
+
+    local t1 = pass(t)
+    assert.are_same(t, t1)
+  end)
 end)
