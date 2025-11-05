@@ -21,21 +21,31 @@ jobs:
         luaVersion: ${{ matrix.luaVersion }}
         buildCache: false
 
+    - name: Setup Luarocks
+      if: matrix.luaVersion != 'luajit'
+      uses: leafo/gh-actions-luarocks@v4
+
     - name: Setup LuaJIT
       if: matrix.luaVersion == 'luajit'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential
+
         git clone https://luajit.org/git/luajit.git
         cd luajit
         make -j
         sudo make install
         sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
-        echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/luajit.conf
-        sudo ldconfig
+        cd ..
 
-    - name: Setup Luarocks
-      uses: leafo/gh-actions-luarocks@v4
+        wget https://luarocks.org/releases/luarocks-3.9.2.tar.gz
+        tar zxpf luarocks-3.9.2.tar.gz
+        cd luarocks-3.9.2
+        ./configure
+        make
+        sudo make install
+
+        sudo ldconfig
 
     - name: Setup busted
       run: luarocks install busted
