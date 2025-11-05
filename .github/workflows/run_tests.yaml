@@ -15,14 +15,14 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Setup Lua
-      if: matrix.luaVersion != "luajit"
+      if: matrix.luaVersion != 'luajit'
       uses: leafo/gh-actions-lua@v10
       with:
         luaVersion: ${{ matrix.luaVersion }}
         buildCache: false
 
     - name: Setup LuaJIT
-      if: matrix.luaVersion == "luajit"
+      if: matrix.luaVersion == 'luajit'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential
