@@ -25,7 +25,7 @@ Supports Lua 5.1, 5.2, 5.3, 5.4 and LuaJIT. Specifically covers (tests present) 
 
 | Cases                                     | Support      |
 | ----------------------------------------- | ------------ |
-| function                                  | full         |
+| functions                                 | full         |
 | metatables                                | full         |
 | non-primitive keys                        | full         |
 | cyclical references                       | full         |
