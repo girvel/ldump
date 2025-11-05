@@ -5,7 +5,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit-openresty"]
+        luaVersion: ["5.4", "5.3", "5.2", "5.1", "luajit-master"]
 
     # would not test on windows, the leafo-gh-actions-lua bugs out even with presetup
     runs-on: ubuntu-22.04
