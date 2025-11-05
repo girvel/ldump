@@ -15,4 +15,5 @@ Providing `ldump.get_safe_env()` as the fourth argument to `load` will limit acc
 
 If you are customizing serialization, you will need to extend `ldump.get_safe_env`'s result with used lua environment members.
 
-**NOTE:** Lua 5.1's `setfenv` wouldn't make it safer
+> [!WARNING]
+> Lua 5.1's `setfenv` wouldn't make it safer, tested.

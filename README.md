@@ -2,20 +2,40 @@
 
 # ldump — serialization library for any lua type
 
-`ldump` is a flexible serializer, able to serialize any data, starting with circular references, tables as keys, functions with upvalues, metatables and ending with coroutines, threads and userdata (by defining how they should be serialized). It outputs valid Lua code that recreates the original object, doing the deserialization through `load(data)()`. It aims for functionality and flexibility instead of speed and size, allowing full serialization of complex data, such as video game saves. The output is large, but can be drastically reduced with modern compression algorithms.
+`ldump` is a flexible serializer, able to serialize any theoretically serializable Lua data, including Lua code & edge cases.
 
-Inspired by [`Ser`](https://github.com/gvx/Ser). Supports Lua 5.1, 5.2, 5.3, 5.4 and LuaJIT. Tested for edge cases, such as joined upvalues and _ENV redefinition. Fully annotated in compatibility with LuaLS.
+- Outputs valid Lua code that recreates the original object, doing the deserialization through `load(data)()`
+- Aims for functionality and flexibility instead of speed and size; think video game saves/RPC, not JSON-like untrusted data transfer. The output is large, but can be drastically reduced with modern compression algorithms
 
-**WARNING:** `ldump`'s deserialization function is Lua's builtin `load`, which can load malicious code. Consider using JSON for untrusted data or use [safety measures](/docs/safety.md).
+> [!WARNING]
+> `ldump`'s deserialization function is Lua's builtin `load`, which can load malicious code. Consider using JSON for untrusted data or use [safety measures](/docs/safety.md).
 
-| Type                                      | Support      |
+## Features
+
+- Fully annotated in compatibility with LuaLS
+- Fully documented
+- Serialization overload: through metatables, for exact values and generically
+- Informative error messages
+- Safe loading option for Lua 5.2+ (and with some boilerplate on LuaJIT)
+- Inspired by [`Ser`](https://github.com/gvx/Ser)
+
+## Coverage
+
+Supports Lua 5.1, 5.2, 5.3, 5.4 and LuaJIT. Specifically covers (tests present) these edge cases:
+
+| Cases                                     | Support      |
 | ----------------------------------------- | ------------ |
-| nil, boolean, number, string              | full         |
 | function                                  | full         |
+| metatables                                | full         |
+| non-primitive keys                        | full         |
+| cyclical references                       | full         |
+| closures                                  | full         |
+| _ENV override                             | full         |
+| very large tables                         | full         |
+| joined upvalues                           | Lua5.2+      |
 | userdata                                  | user-defined |
 | thread                                    | user-defined |
-| table                                     | full         |
-| metatables[*](/docs/development.md#plans) | full         |
+| deserialization through require           | full         |
 
 
 ## TL;DR show me the code
