@@ -25,6 +25,10 @@ jobs:
       if: matrix.luaVersion != 'luajit'
       uses: leafo/gh-actions-luarocks@v4
 
+    - name: Setup busted
+      if: matrix.luaVersion != 'luajit'
+      run: luarocks install busted
+
     - name: Setup LuaJIT
       if: matrix.luaVersion == 'luajit'
       run: |
@@ -46,9 +50,18 @@ jobs:
         sudo make install
 
         sudo ldconfig
+        
+        echo "--- PATH ---"
+        echo $PATH
+        echo "--- Verifying luajit installation ---"
+        which luajit
+        luajit -v
+        echo "--- Verifying luarocks installation ---"
+        which luarocks
+        echo "--- Verifying luarocks configuration ---"
+        sudo luarocks config
 
-    - name: Setup busted
-      run: sudo luarocks install busted
+        sudo luarocks install busted
 
     - name: Run Busted
       run: busted -v
