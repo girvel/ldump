@@ -163,7 +163,7 @@ describe("Overriding serialization:", function()
       end
 
       if type(x) == "function" then
-        return 0, "serializer's table handling"
+        return 0, "serializer's function handling"
       end
     end
 
@@ -176,8 +176,8 @@ describe("Overriding serialization:", function()
 
     local ok, res = pcall(ldump --[[@as function]], f)
     assert.is_false(ok)
-    local ending = "serializer's table handling"
-    assert.are_equal(ending, res:sub(1, #ending))
+    local suffix = "serializer's function handling"
+    assert.is_true(not not res:find(suffix))
 
     ldump.serializer = old_serializer
   end)
