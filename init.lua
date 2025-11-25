@@ -296,7 +296,15 @@ end
 
 local primitives = {
   number = function(x)
-    return tostring(x)
+    if x == math.huge then
+      return "math.huge"
+    elseif x == -math.huge then
+      return "-math.huge"
+    elseif x ~= x then
+      return "0/0"
+    else
+      return tostring(x)
+    end
   end,
   string = function(x)
     return string.format("%q", x)
