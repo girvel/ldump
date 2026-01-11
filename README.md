@@ -1,4 +1,4 @@
-[API](/docs/api.md) | [Overloading serialization](/docs/overloading.md) | [Serializing modules](/docs/serializing_modules.md) | [Safety](/docs/safety.md) | [Development](/docs/development.md)
+[API](/docs/api.md) | [Overloading serialization](/docs/overloading.md) | [Serializing modules](/docs/serializing_modules.md) | [Async](/docs/async.md) | [Safety](/docs/safety.md) | [Development](/docs/development.md)
 
 # ldump — serialization library for any lua type
 
