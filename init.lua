@@ -117,6 +117,14 @@ ldump.require_path = select(1, ...)
 --- @param modname string
 --- @return T
 ldump.mark = function(module, schema, modname)
+  local modname_type = type(modname)
+  if modname_type ~= "string" then
+    error(
+      "Expected string module path, got "..modname_type.."; use ... as the third argument of the "
+      .."ldump.mark, but only when using `require`, not `dofile`", 1
+    )
+  end
+
   mark(module, modname, schema)
   return module
 end
